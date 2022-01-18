@@ -23,6 +23,8 @@ int AlarmHourDisplay = 0;     //12-Hour Value of the alarm
 int AlarmMinute = 0;          //Minute value of the alarm
 int anaAlarm;                 //Raw analog pin value for alarm dial 
 int mappedAlarm;              //Mapped analog value for alarm dial
+int currentHour = 0;          //Hour placeholder used for handling Daylight Saving Time (DST) offsets
+int DST = 0;                  //Used to Enable/Disable Daylight Saving Time (DST)
 bool Alarmampm;               //Boolean for alarm AM or PM
 bool AlarmSet = false;        //Boolean for whether alarm is set or not
 bool ampm = true;             //Boolean for whether current time is AM or PM
@@ -64,6 +66,32 @@ void setup() {
   pinMode(Buzzer, OUTPUT);
   pinMode(SwitchUp, INPUT);
   pinMode(SwitchDown, INPUT);
+
+  //Read the Dial Potentiometer value
+  anaAlarm = analogRead(A1);
+  
+  //If the Dial potentiometer is rotated completely counter-clockwise or completely clockwise
+  //AND if the 3-position rocker switch is in position "II"
+  //Then adjust the time of the RTC to the time that the sketch was compiled and set it as the "Current Time"
+  if(digitalRead(SwitchUp) == 1 && (anaAlarm < 150 || anaAlarm > 850))
+  {
+    DateTime compileDate(__DATE__, __TIME__);
+    //If the Daylight Saving Time (DST) is active, adjust the RTC value to NON-DST
+    if(anaAlarm < 150){//If Dial Potentiometer is rotated fully counter-clockwise, user has input DST is currently active
+      DST = 1;
+      if(compileDate.hour() >= 1){//If the hour is after 1AM, offset the hour backward by 1 to reference the NON-DST time
+        currentHour = compileDate.hour() - 1;
+      }
+      else{//If the hour is between midnight and 1AM, offset the hour backward by 1 to reference NON-DST time
+        currentHour = 23;
+      }
+      rtc.adjust(DateTime(compileDate.year(),compileDate.month(),compileDate.day(),currentHour,compileDate.minute(),compileDate.second()));
+    }
+    else if(anaAlarm > 850){//If Dial Potentiometer is rotated fully clockwise, user has input DST is currently inactive
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+      DST = 0;
+    }
+  }
 }
 
 
@@ -84,10 +112,23 @@ void update_Time()
   //Take the current time, and check if it is a new second
   //If it is, then display the new time with thedisplayfunction()
   now = rtc.now();
+  //Load the RTC hour value into the currentHour placeholder and adjust for Daylight Saving Time being Enabled/Disabled
+  if(DST == 1){//If DST is active
+    if(now.hour() <= 22){//If it is before 11PM, add 1 Hour to the time
+      currentHour = now.hour() + 1;
+    }
+    else{//If it is after 11PM, add 1 Hour to the time w/o overrunning the bound
+      currentHour = 0;
+    }
+  }
+  else{//If DST is inactive, then the RTC time does not need to be offset
+    currentHour = now.hour();
+  }
+  
   if(now.second() != lastSecond)
   {
     //Pass the current hour, minute, and second to thedisplayfunction()
-    thedisplayfunction(now.hour(), now.minute(), now.second());
+    thedisplayfunction(currentHour, now.minute(), now.second());
   }
   //Set the last second to the value currently displayed
   lastSecond = now.second();
@@ -109,7 +150,7 @@ void update_Alarm()
       lcd.print("*");
 
       //Check if it is time to activate the alarm, give a 2-second window for the alarm to activate
-      if(now.hour()==AlarmHour && now.minute()==AlarmMinute && now.second()>=0 && now.second()<=2)
+      if(currentHour==AlarmHour && now.minute()==AlarmMinute && now.second()>=0 && now.second()<=2)
       {
         //While the Alarm switch is in the "ON" position, sound buzzer
         while(digitalRead(SwitchUp)==1)
@@ -150,68 +191,101 @@ void update_Alarm()
     {
       //Read the dial value
       anaAlarm = analogRead(A1);
-      //Map the value to 24 hours divided into 15-minute intervals
+
+      //If the alarm is in the range to enable/disable DST (Daylight Saving Time), then display the appropriate message and Enable or Disable it below
       if(anaAlarm < 150){
-        anaAlarm = 150;
+        //Enable DST
+        DST = 1;
+        lcd.clear();
+        lcd.setCursor(2,1);
+        lcd.print("Switch to 'O' to");
+        lcd.setCursor(5,2);
+        lcd.print("ENABLE DST");
       }
-      else if(anaAlarm > 873){
-        anaAlarm = 873;
-      }
-      mappedAlarm = map(anaAlarm, 150, 873, 0, 95);
-      //Calculate the minute value of the mappedAlarm
-      //Multiply by 15, since alarm will be set in 15 minute increments, then take the modulo of that to get the minutes value
-      AlarmMinute = (mappedAlarm * 15) % 60;
-      //Calculate the hour value of the mappedAlarm
-      //Remove the Minute offset from the mapped value to get the hour, divide by 4 to convert from 15 minute increments to hours
-      AlarmHour = ((mappedAlarm - (AlarmMinute / 15)) / 4);
-      //If the alarm hour is after 12:XX pm, shift the displayed time to 1 pm instead of 13:XX
-      //and display appropriate 'AM' or 'PM' Value
-      if(AlarmHour > 12)
-      {
-        AlarmHourDisplay = AlarmHour - 12;
-        Alarmampm = false;
-      }
-      else if(AlarmHour == 12)
-      {
-        AlarmHourDisplay = AlarmHour;
-        Alarmampm = false;
-      }
-      else if(AlarmHour == 0)
-      {
-        AlarmHourDisplay = 12;
-        Alarmampm = true;
-      }
-      else
-      {
-        AlarmHourDisplay = AlarmHour;
-        Alarmampm = true;
+      else if(anaAlarm > 850){
+        //Disable DST
+        DST = 0;
+        lcd.clear();
+        lcd.setCursor(2,1);
+        lcd.print("Switch to 'O' to");
+        lcd.setCursor(4,2);
+        lcd.print("DISABLE DST");
       }
 
-      //Set cursor, and print leading '0' if alarm value is less than 10
-      //This keeps the numbers in the same position instead of shifting around
-      lcd.setCursor(6,2);
-      if(AlarmHourDisplay < 10)
+      //If the value is in the alarm setting range, process the internal code
+      if(anaAlarm >= 150 and anaAlarm <= 850)
       {
-        lcd.print("0");
+        if(anaAlarm < 200)
+        {
+          anaAlarm = 200;
+        }
+        else if(anaAlarm > 800)
+        {
+          anaAlarm = 800;
+        }
+        
+        lcd.clear();
+        lcd.setCursor(3,1);
+        lcd.print("Set Alarm for:");
+        //Map the value to 24 hours divided into 15-minute intervals
+        mappedAlarm = map(anaAlarm, 200, 800, 0, 95);
+        //Calculate the minute value of the mappedAlarm
+        //Multiply by 15, since alarm will be set in 15 minute increments, then take the modulo of that to get the minutes value
+        AlarmMinute = (mappedAlarm * 15) % 60;
+        //Calculate the hour value of the mappedAlarm
+        //Remove the Minute offset from the mapped value to get the hour, divide by 4 to convert from 15 minute increments to hours
+        AlarmHour = ((mappedAlarm - (AlarmMinute / 15)) / 4);
+        //If the alarm hour is after 12:XX pm, shift the displayed time to 1 pm instead of 13:XX
+        //and display appropriate 'AM' or 'PM' Value
+        if(AlarmHour > 12)
+        {
+          AlarmHourDisplay = AlarmHour - 12;
+          Alarmampm = false;
+        }
+        else if(AlarmHour == 12)
+        {
+          AlarmHourDisplay = AlarmHour;
+          Alarmampm = false;
+        }
+        else if(AlarmHour == 0)
+        {
+          AlarmHourDisplay = 12;
+          Alarmampm = true;
+        }
+        else
+        {
+          AlarmHourDisplay = AlarmHour;
+          Alarmampm = true;
+        }
+  
+        //Set cursor, and print leading '0' if alarm value is less than 10
+        //This keeps the numbers in the same position instead of shifting around
+        lcd.setCursor(6,2);
+        if(AlarmHourDisplay < 10)
+        {
+          lcd.print("0");
+        }
+        //Print the Alarm hour value
+        lcd.print(AlarmHourDisplay);
+        lcd.print(":");
+        //Print the same leading '0' for the minutes value if less than 10 
+        if(AlarmMinute < 10)
+        {
+          lcd.print("0");
+        }
+        //Print the Alarm minute value and the appropriate 'AM' or 'PM'
+        lcd.print(AlarmMinute);
+        lcd.print(" ");
+        if(Alarmampm == true)
+        {
+          lcd.print("AM");
+        }
+        else{
+          lcd.print("PM");
+        }
       }
-      //Print the Alarm hour value
-      lcd.print(AlarmHourDisplay);
-      lcd.print(":");
-      //Print the same leading '0' for the minutes value if less than 10 
-      if(AlarmMinute < 10)
-      {
-        lcd.print("0");
-      }
-      //Print the Alarm minute value and the appropriate 'AM' or 'PM'
-      lcd.print(AlarmMinute);
-      lcd.print(" ");
-      if(Alarmampm == true)
-      {
-        lcd.print("AM");
-      }
-      else{
-        lcd.print("PM");
-      }
+
+      
       delay(100);
     }
     
