@@ -1,7 +1,8 @@
 //Start by including the needed libraries
 //Make sure that you have included these .zip libraries in your Arduino installation
-#include <LiquidCrystal.h>  //Allows us to drive the LCD Display
-#include "RTClib.h"         //Allows us to interface with the Real Time Clock (RTC)
+#include <Wire.h>
+#include "src/LiquidCrystal_I2C.h"    //Allows us to interface with the LCD Panel via I2C
+#include "src/RTClib.h"         //Allows us to interface with the Real Time Clock (RTC)
 
 RTC_DS3231 rtc;             //Define the RTC name
 
@@ -10,8 +11,8 @@ RTC_DS3231 rtc;             //Define the RTC name
 #define SwitchUp  10
 #define SwitchDown  12
 
-//Select the pins used on the LCD panel
-LiquidCrystal lcd(2, 8, 4, 5, 6, 7);
+// Configure the I2C address and LCD panel parameters
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 //Initialize the date/time object
 DateTime now;
@@ -551,7 +552,8 @@ void lcdcharinitiate()
   //Initialize the LCD itself with the loaded values
   //If your custom characters don't display correctly, reset the Arduino, and it will reload them into the CGRAM of the LCD
   //It may take a couple resets to get the CGRAM loaded correctly
-  lcd.begin(20 , 4);
+  lcd.begin();
+  lcd.backlight();
 
 }
 
