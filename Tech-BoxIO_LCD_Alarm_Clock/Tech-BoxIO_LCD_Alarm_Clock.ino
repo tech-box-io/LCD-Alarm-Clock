@@ -60,6 +60,9 @@ void setup() {
   }
 
   //initialize the custom characters and clear the LCD
+  delay(200);
+  lcd.begin();
+  delay(200);
   lcdcharinitiate();
   lcd.clear();
 
@@ -540,7 +543,8 @@ void lcdcharinitiate()
 
   //Create the characters and load them into the CGRAM on the LCD
   //We will write (byte(x)) to the LCD where x is 0-7 below, to display our custom characters
-  lcd.createChar(0 , C0);
+  //Using address 8 instead of 0 to avoid library addressing bug
+  lcd.createChar(8 , C0);
   lcd.createChar(1 , C1);
   lcd.createChar(2 , C2);
   lcd.createChar(3 , C3);
@@ -549,10 +553,10 @@ void lcdcharinitiate()
   lcd.createChar(6 , C6);
   lcd.createChar(7 , C7);
 
+
   //Initialize the LCD itself with the loaded values
-  //If your custom characters don't display correctly, reset the Arduino, and it will reload them into the CGRAM of the LCD
-  //It may take a couple resets to get the CGRAM loaded correctly
-  lcd.begin();
+  //Use setCursor to place the HD44780 back into DDRAM mode after creating characters in CGRAM mode
+  lcd.setCursor(0,0);
   lcd.backlight();
 
 }
@@ -574,7 +578,7 @@ void lcdnumber0(int startposition)
     //Move the cursor to the next position on the same line
     lcd.setCursor(startposition+1,0);
     //Write 0 to the LCD, this corresponds to the first value in CGRAM from our custom characters (C0)
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     //Move the cursor to the next position on the same line
     lcd.setCursor(startposition+2,0);
     //Write 255 to the LCD to turn all pixels for that location on
@@ -620,7 +624,7 @@ void lcdnumber0(int startposition)
 void lcdnumber1(int startposition)
 {
     lcd.setCursor(startposition+0,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+1,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+2,0);
@@ -649,7 +653,7 @@ void lcdnumber2(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(5));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,1);
@@ -661,9 +665,9 @@ void lcdnumber2(int startposition)
     lcd.setCursor(startposition+0,2);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,2);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,2);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+0,3);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,3);
@@ -676,7 +680,7 @@ void lcdnumber3(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(5));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,1);
@@ -688,7 +692,7 @@ void lcdnumber3(int startposition)
     lcd.setCursor(startposition+0,2);
     lcd.write(byte(32));
     lcd.setCursor(startposition+1,2);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,2);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,3);
@@ -730,7 +734,7 @@ void lcdnumber5(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(5));
     lcd.setCursor(startposition+0,1);
@@ -757,7 +761,7 @@ void lcdnumber6(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(5));
     lcd.setCursor(startposition+0,1);
@@ -784,7 +788,7 @@ void lcdnumber7(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(5));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,1);
@@ -811,7 +815,7 @@ void lcdnumber8(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,1);
@@ -838,7 +842,7 @@ void lcdnumber9(int startposition)
     lcd.setCursor(startposition+0,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+1,0);
-    lcd.write(byte(0));
+    lcd.write(byte(8));
     lcd.setCursor(startposition+2,0);
     lcd.write(byte(255));
     lcd.setCursor(startposition+0,1);
